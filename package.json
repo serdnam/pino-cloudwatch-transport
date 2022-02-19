@@ -1,0 +1,62 @@
+{
+  "name": "@serdnam/pino-cloudwatch-transport",
+  "version": "0.0.0",
+  "description": "Pino v7+ AWS CloudWatch Logs transport",
+  "type": "module",
+  "exports": "./dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/index.*"
+  ],
+  "scripts": {
+    "test": "tap test/*.test.ts",
+    "build": "rimraf dist && tsc"
+  },
+  "tap": {
+    "ts": false,
+    "coverage": false,
+    "node-arg": [
+      "--no-warnings",
+      "--loader=ts-node/esm"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/serdnam/pino-cloudwatch-transport.git"
+  },
+  "keywords": [
+    "pino",
+    "transport",
+    "logging",
+    "cloudwatch",
+    "aws"
+  ],
+  "author": "Andrés Mármol - @serdnam",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/serdnam/pino-cloudwatch-transport/issues"
+  },
+  "homepage": "https://github.com/serdnam/pino-cloudwatch-transport#readme",
+  "devDependencies": {
+    "@types/node": "^17.0.18",
+    "@types/tap": "^15.0.5",
+    "@typescript-eslint/eslint-plugin": "^5.12.0",
+    "@typescript-eslint/parser": "^5.12.0",
+    "dotenv": "^16.0.0",
+    "eslint": "^8.9.0",
+    "p-retry": "^5.0.0",
+    "pino": "^7.8.0",
+    "rimraf": "^3.0.2",
+    "tap": "^15.1.6",
+    "ts-node": "^10.5.0",
+    "typescript": "^4.5.5"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cloudwatch-logs": "^3.52.0",
+    "p-throttle": "^5.0.0",
+    "pino-abstract-transport": "^0.5.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

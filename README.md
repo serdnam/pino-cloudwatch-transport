@@ -83,8 +83,8 @@ import pino from 'pino';
 const transport = pino.transport({
     target: '@serdnam/pino-cloudwatch-transport',
     options: {
-        logGroupName: 'test2',
-        logStreamName: 'test2-stream',
+        logGroupName: 'pino-cloudwatch-test',
+        logStreamName: 'pino-cloudwatch-test-stream',
         awsRegion: process.env.AWS_REGION,
         awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
         awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY

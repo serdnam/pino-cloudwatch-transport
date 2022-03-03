@@ -1,6 +1,6 @@
 {
   "name": "@serdnam/pino-cloudwatch-transport",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Pino v7+ AWS CloudWatch Logs transport",
   "type": "module",
   "exports": "./dist/index.js",

@@ -185,7 +185,15 @@ export default async function (options: PinoCloudwatchTransportOptions) {
 
   await createLogGroup(logGroupName);
   await createLogStream(logGroupName, logStreamName);
-  await nextToken(logGroupName, logStreamName);
+  try {
+    await nextToken(logGroupName, logStreamName);
+  } catch (e) {
+    addLog({
+      timestamp: Date.now(),
+      message: JSON.stringify({ message: 'pino-cloudwatch-transport error', error: e })
+    })
+  }
+  
   
   return build(async function (source) {
     for await (const obj of source) {

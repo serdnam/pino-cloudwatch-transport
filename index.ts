@@ -187,10 +187,10 @@ export default async function (options: PinoCloudwatchTransportOptions) {
   await createLogStream(logGroupName, logStreamName);
   try {
     await nextToken(logGroupName, logStreamName);
-  } catch (e) {
+  } catch (e: any) {
     addLog({
       timestamp: Date.now(),
-      message: JSON.stringify({ message: 'pino-cloudwatch-transport error', error: e })
+      message: JSON.stringify({ message: 'pino-cloudwatch-transport error', error: e.message })
     })
   }
   

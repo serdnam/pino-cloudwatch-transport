@@ -54,65 +54,7 @@ export default async function (options: PinoCloudwatchTransportOptions) {
 
   let sequenceToken: string | undefined;
 
-  async function createLogGroup(logGroupName: string) {
-    try {
-      await client.send(new CreateLogGroupCommand({ logGroupName }))
-    } catch (error: unknown) {
-      if (isResourceAlreadyExistsException(error)) {
-        return;
-      } else {
-        throw error;
-      }
-    }
-  }
-
-  async function createLogStream(logGroupName: string, logStreamName: string) {
-    try {
-      await client.send(new CreateLogStreamCommand({ 
-        logGroupName, 
-        logStreamName 
-      }));
-    } catch (error: unknown) {
-      if (isResourceAlreadyExistsException(error)) {
-        return;
-      } else {
-        throw error;
-      }
-    }
-  }
-
-  async function nextToken(logGroupName: string, logStreamName: string) {
-    const output = await client.send(new DescribeLogStreamsCommand({ 
-      logGroupName, 
-      logStreamNamePrefix: logStreamName 
-    }));
-    if(output.logStreams?.length === 0) {
-      throw new Error('LogStream not found.');
-    }
-
-    sequenceToken = output.logStreams?.[0].uploadSequenceToken;
-  }
-
-  async function putEventLogs(logGroupName: string, logStreamName: string , logEvents: Log[]) {
-    if(logEvents.length === 0) return;
-    try {
-      const output = await client.send(new PutLogEventsCommand({ 
-        logEvents,
-        logGroupName,
-        logStreamName,
-        sequenceToken
-       }));
-       sequenceToken = output.nextSequenceToken;
-    } catch (error: unknown) {
-      if(isInvalidSequenceTokenException(error)) {
-        sequenceToken = error.expectedSequenceToken;
-      } else {
-        throw error;
-      }
-    }
-  }  
-
-  const { addLog, getLogs, wipeLogs } = (function() {
+  const { addLog, getLogs, wipeLogs, addErrorLog } = (function() {
 
     let lastFlush = Date.now();
 
@@ -166,12 +108,84 @@ export default async function (options: PinoCloudwatchTransportOptions) {
       }
     }
 
+    async function addErrorLog(errorLog: { message: string, error: string }) {
+      const shouldFlush = addLog({
+        timestamp: Date.now(),
+        message: JSON.stringify(errorLog)
+      });
+      if(shouldFlush) {
+        await flush();
+      }
+    }
+
     function wipeLogs(): void {
       bufferedLogs.length = 0; // TODO: is there a better/more performant way to wipe the array?
     }
 
-    return { addLog, getLogs, wipeLogs };
+    return { addLog, getLogs, wipeLogs, addErrorLog };
   })();
+
+  // Initialization functions
+
+  async function createLogGroup(logGroupName: string) {
+    try {
+      await client.send(new CreateLogGroupCommand({ logGroupName }))
+    } catch (error: unknown) {
+      if (isResourceAlreadyExistsException(error)) {
+        return;
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  async function createLogStream(logGroupName: string, logStreamName: string) {
+    try {
+      await client.send(new CreateLogStreamCommand({
+        logGroupName,
+        logStreamName 
+      }));
+    } catch (error: unknown) {
+      if (isResourceAlreadyExistsException(error)) {
+        return;
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  async function nextToken(logGroupName: string, logStreamName: string) {
+    const output = await client.send(new DescribeLogStreamsCommand({ 
+      logGroupName,
+      logStreamNamePrefix: logStreamName
+    }));
+    if(output.logStreams?.length === 0) {
+      throw new Error('LogStream not found.');
+    }
+
+    sequenceToken = output.logStreams?.[0].uploadSequenceToken;
+  }
+
+  // Function for putting event logs
+
+  async function putEventLogs(logGroupName: string, logStreamName: string , logEvents: Log[]) {
+    if(logEvents.length === 0) return;
+    try {
+      const output = await client.send(new PutLogEventsCommand({
+        logEvents,
+        logGroupName,
+        logStreamName,
+        sequenceToken
+       }));
+       sequenceToken = output.nextSequenceToken;
+    } catch (error: unknown) {
+      if(isInvalidSequenceTokenException(error)) {
+        sequenceToken = error.expectedSequenceToken;
+      } else {
+        throw error;
+      }
+    }
+  }
 
   const throttle = pThrottle({
     interval: 1000,
@@ -179,19 +193,23 @@ export default async function (options: PinoCloudwatchTransportOptions) {
   });
 
   const flush = throttle(async function() {
-    await putEventLogs(logGroupName, logStreamName, getLogs());
-    wipeLogs();
+    try {
+      await putEventLogs(logGroupName, logStreamName, getLogs());
+    } catch (e: any) {
+      await addErrorLog({ message: 'pino-cloudwatch-transport flushing error', error: e.message });
+    } finally {
+      wipeLogs();
+    }
   });
 
-  await createLogGroup(logGroupName);
-  await createLogStream(logGroupName, logStreamName);
+  // Transport initialization
+
   try {
+    await createLogGroup(logGroupName);
+    await createLogStream(logGroupName, logStreamName);
     await nextToken(logGroupName, logStreamName);
   } catch (e: any) {
-    addLog({
-      timestamp: Date.now(),
-      message: JSON.stringify({ message: 'pino-cloudwatch-transport error', error: e.message })
-    })
+    await addErrorLog({ message: 'pino-cloudwatch-transport initialization error', error: e.message });
   }
   
   

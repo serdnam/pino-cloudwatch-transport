@@ -54,7 +54,7 @@ export default async function (options: PinoCloudwatchTransportOptions) {
 
   let sequenceToken: string | undefined;
 
-  const { addLog, getLogs, wipeLogs, addErrorLog } = (function() {
+  const { addLog, getLogs, wipeLogs, addErrorLog, orderLogs } = (function() {
 
     let lastFlush = Date.now();
 
@@ -84,6 +84,10 @@ export default async function (options: PinoCloudwatchTransportOptions) {
 
     function getLogs(): Log[] {
       return bufferedLogs;
+    }
+
+    function orderLogs(): void {
+      getLogs().sort((a, b) => a.timestamp - b.timestamp);
     }
 
     function shouldDoAPeriodicFlush() {
@@ -122,7 +126,7 @@ export default async function (options: PinoCloudwatchTransportOptions) {
       bufferedLogs.length = 0; // TODO: is there a better/more performant way to wipe the array?
     }
 
-    return { addLog, getLogs, wipeLogs, addErrorLog };
+    return { addLog, getLogs, wipeLogs, addErrorLog, orderLogs };
   })();
 
   // Initialization functions
@@ -194,6 +198,7 @@ export default async function (options: PinoCloudwatchTransportOptions) {
 
   const flush = throttle(async function() {
     try {
+      orderLogs();
       await putEventLogs(logGroupName, logStreamName, getLogs());
     } catch (e: any) {
       await addErrorLog({ message: 'pino-cloudwatch-transport flushing error', error: e.message });
